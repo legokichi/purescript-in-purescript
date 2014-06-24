@@ -87,6 +87,8 @@ import Node.Path
 
 import qualified Language.PureScript.Constants as C
 
+import TimeUtil
+
 foreign import procFilePath "var procFilePath = require('fs').realpathSync(process.argv[1]);" :: String
 
 -- |
@@ -113,16 +115,16 @@ compile = compile' initEnvironment
 
 compile' :: Environment -> Options -> [Module] -> Either String (Tuple3 String String Environment)
 compile' env opts@(Options optso) ms = do
-  Tuple sorted _ <- sortModules $ if optso.noPrelude then ms else (map importPrelude ms)
-  Tuple desugared nextVar <- stringifyErrorStack true $ runSupplyT 0 $ desugar sorted
-  Tuple elaborated env' <- runCheck' opts env $ for desugared $ typeCheckModule mainModuleIdent
-  regrouped <- stringifyErrorStack true $ createBindingGroupsModule <<< collapseBindingGroupsModule $ elaborated
+  Tuple sorted _ <- time "  sortModules" $ \_ -> sortModules $ if optso.noPrelude then ms else (map importPrelude ms)
+  Tuple desugared nextVar <- time "  desugar" $ \_ -> stringifyErrorStack true $ runSupplyT 0 $ desugar sorted
+  Tuple elaborated env' <- time "  typecheck" $ \_ -> runCheck' opts env $ for desugared $ typeCheckModule mainModuleIdent
+  regrouped <- time "  binding groups" $ \_ -> stringifyErrorStack true $ createBindingGroupsModule <<< collapseBindingGroupsModule $ elaborated
   let
     entryPoints = moduleNameFromString `map` optso.modules
     elim = regrouped -- if null entryPoints then regrouped else eliminateDeadCode entryPoints regrouped
     codeGenModules = moduleNameFromString `map` optso.codeGenModules
     modulesToCodeGen = if null codeGenModules then elim else filter (\(Module mn _ _) -> mn `elem` codeGenModules) elim
-    js = evalSupply nextVar $ concat <$> traverse (\m -> moduleToJs Globals opts m env') modulesToCodeGen
+    js = time "  js codegen" $ \_ -> evalSupply nextVar $ concat <$> traverse (\m -> moduleToJs Globals opts m env') modulesToCodeGen
     exts = joinWith "\n" <<< map (\m -> moduleToPs m env') $ modulesToCodeGen
   js' <- generateMain env' opts js
   return (Tuple3 (prettyPrintJS js') exts env')

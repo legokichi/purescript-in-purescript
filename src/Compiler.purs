@@ -51,6 +51,8 @@ import qualified Language.PureScript.Parser.Lexer as P
 import qualified Language.PureScript.Parser.Common as P
 import qualified Language.PureScript.Parser.Declarations as P
 
+import TimeUtil
+
 moduleFromText :: String -> Either String Module
 moduleFromText text = do
   tokens <- P.lex text
@@ -66,8 +68,8 @@ readInput input =
 
 runCompiler :: forall eff. Options -> [String] -> Maybe String -> Maybe String -> Eff (fs :: FS, trace :: Trace, process :: Process | eff) Unit
 runCompiler opts@(Options optso) input output externs = runApplication do
-  modules <- readInput allInputFiles
-  Tuple3 js exts _ <- eitherApplication $ compile opts modules
+  modules <- time "read & parse files" $ \_ -> readInput allInputFiles
+  Tuple3 js exts _ <- time "compile" $ \_ -> eitherApplication $ compile opts modules
   case output of
     Nothing -> effApplication (trace js)
     Just path -> do
