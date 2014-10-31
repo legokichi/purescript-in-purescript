@@ -173,7 +173,7 @@ compile opt texts = do
                   false -- noTco
                   false -- performRuntimeTypeChecks
                   false -- noMagicDo
-                  (Just "main") -- main
+                  (Just "Main") -- main
                   false -- noOptimizations
                   (Just "PS")
                   [] -- modules
