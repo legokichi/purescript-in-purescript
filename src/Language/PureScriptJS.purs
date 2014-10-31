@@ -13,7 +13,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Language.PureScriptBrowser (
+module Language.PureScriptJS (
     compile
   ) where
 
@@ -27,6 +27,7 @@ import Data.String (joinWith)
 import Data.Foldable (all, any, elem, find, traverse_)
 import Data.Traversable (for, traverse)
 import Data.Foreign
+import Data.Foreign.NullOrUndefined
 import Data.Foreign.Class
 
 import qualified Data.Array.Unsafe as Unsafe
@@ -138,7 +139,6 @@ runApplication (Application app) = do
     Right js -> do
       return $ Right js
 
-
 eitherApplication :: forall a. Either String a -> Application a
 eitherApplication e = Application (ErrorT (return e))
 
@@ -157,8 +157,8 @@ readInput texts =
       Left err -> throwError err
       Right mod -> return mod)
 
-compile :: forall eff a. [String] -> Eff (trace :: Trace | eff) {err :: String, result :: String}
-compile texts = do
+compile :: forall eff a. Foreign -> [String] -> Eff (trace :: Trace | eff) {err :: String, result :: String}
+compile opt texts = do
   result <- runApplication do
     mods <- readInput texts
     Tuple3 js ext _ <- eitherApplication (_compile _opt mods)
@@ -169,16 +169,16 @@ compile texts = do
     Right js -> do
       return {err : "", result : js}
   where
-  _opt = mkOptions true--noPrelude
-                  false--noTco
-                  false--performRuntimeTypeChecks
-                  false--noMagicDo
-                  Nothing
-                  false--noOptimizations
+  _opt = mkOptions true -- noPrelude
+                  true -- noTco
+                  false -- performRuntimeTypeChecks
+                  false -- noMagicDo
+                  Nothing -- main
+                  true -- noOptimizations
                   (Just "PS")
-                  []--modules
-                  []--codeGenModules
-                  false--verboseErrors
+                  [] -- modules
+                  [] -- codeGenModules
+                  true -- verboseErrors
 
 _compile :: Options -> [Module] -> Either String (Tuple3 String String Environment)
 _compile = compile' initEnvironment
