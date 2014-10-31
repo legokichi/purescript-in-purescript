@@ -169,12 +169,12 @@ compile opt texts = do
     Right js -> do
       return {err : "", result : js}
   where
-  _opt = mkOptions true -- noPrelude
-                  true -- noTco
+  _opt = mkOptions false -- noPrelude
+                  false -- noTco
                   false -- performRuntimeTypeChecks
                   false -- noMagicDo
-                  Nothing -- main
-                  true -- noOptimizations
+                  (Just "main") -- main
+                  false -- noOptimizations
                   (Just "PS")
                   [] -- modules
                   [] -- codeGenModules
